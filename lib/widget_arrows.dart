@@ -22,8 +22,7 @@ abstract class StatePatched<T extends StatefulWidget> extends State<T> {
   }
 }
 
-class _ArrowContainerState extends StatePatched<ArrowContainer>
-    with ChangeNotifier {
+class _ArrowContainerState extends StatePatched<ArrowContainer> with ChangeNotifier {
   final _elements = <String, _ArrowElementState>{};
 
   @override
@@ -38,8 +37,7 @@ class _ArrowContainerState extends StatePatched<ArrowContainer>
           widget.child,
           IgnorePointer(
             child: CustomPaint(
-              foregroundPainter:
-                  _ArrowPainter(_elements, Directionality.of(context), this),
+              foregroundPainter: _ArrowPainter(_elements, Directionality.of(context), this),
               child: Container(),
             ),
           ),
@@ -67,20 +65,20 @@ class _ArrowPainter extends CustomPainter {
   final Map<String, _ArrowElementState> _elements;
   final TextDirection _direction;
 
-  _ArrowPainter(this._elements, this._direction, Listenable repaint)
-      : super(repaint: repaint);
+  _ArrowPainter(this._elements, this._direction, Listenable repaint) : super(repaint: repaint);
 
   @override
   void paint(Canvas canvas, Size size) {
     _elements.values.forEach((elem) {
       final widget = elem.widget;
 
+      if (!elem.mounted) return;
       if (!widget.show) return; // don't show/paint
       if (widget.targetId == null && widget.targetIds == null) {
         return; // No target for arrow
       }
 
-      List<String> targets;
+      List<GlobalKey> targets;
       if (widget.targetIds == null) {
         targets = [widget.targetId!];
       } else {
@@ -88,14 +86,13 @@ class _ArrowPainter extends CustomPainter {
       }
 
       targets.forEach((targetId) {
-        if (_elements[targetId] == null) {
+        if (targetId.currentContext == null) {
           print('cannot find target arrow element with id "$targetId"');
           return;
         }
 
         final start = elem.context.findRenderObject() as RenderBox;
-        final end =
-            _elements[targetId]?.context.findRenderObject() as RenderBox;
+        final end = targetId.currentContext!.findRenderObject() as RenderBox;
 
         if (!start.attached || !end.attached) {
           print(
@@ -106,13 +103,10 @@ class _ArrowPainter extends CustomPainter {
         final startGlobalOffset = start.localToGlobal(Offset.zero);
         final endGlobalOffset = end.localToGlobal(Offset.zero);
 
-        final startPosition = widget.sourceAnchor
-            .resolve(_direction)
-            .withinRect(Rect.fromLTWH(startGlobalOffset.dx,
-                startGlobalOffset.dy, start.size.width, start.size.height));
+        final startPosition = widget.sourceAnchor.resolve(_direction).withinRect(Rect.fromLTWH(
+            startGlobalOffset.dx, startGlobalOffset.dy, start.size.width, start.size.height));
         final endPosition = widget.targetAnchor.resolve(_direction).withinRect(
-            Rect.fromLTWH(endGlobalOffset.dx, endGlobalOffset.dy,
-                end.size.width, end.size.height));
+            Rect.fromLTWH(endGlobalOffset.dx, endGlobalOffset.dy, end.size.width, end.size.height));
 
         final arrow = getArrow(
           startPosition.dx,
@@ -161,20 +155,17 @@ class _ArrowPainter extends CustomPainter {
     final originalPosition = tan.position;
 
     if (lastPathMetric.length > 10) {
-      final tanBefore =
-          lastPathMetric.getTangentForOffset(lastPathMetric.length - 5)!;
+      final tanBefore = lastPathMetric.getTangentForOffset(lastPathMetric.length - 5)!;
       adjustmentAngle = _getAngleBetweenVectors(tan.vector, tanBefore.vector);
     }
 
     Offset tipVector;
 
-    tipVector =
-        _rotateVector(tan.vector, angleStart - adjustmentAngle) * tipLength;
+    tipVector = _rotateVector(tan.vector, angleStart - adjustmentAngle) * tipLength;
     path.moveTo(tan.position.dx, tan.position.dy);
     path.relativeLineTo(tipVector.dx, tipVector.dy);
 
-    tipVector =
-        _rotateVector(tan.vector, -angleStart - adjustmentAngle) * tipLength;
+    tipVector = _rotateVector(tan.vector, -angleStart - adjustmentAngle) * tipLength;
     path.moveTo(tan.position.dx, tan.position.dy);
     path.relativeLineTo(tipVector.dx, tipVector.dy);
 
@@ -185,13 +176,11 @@ class _ArrowPainter extends CustomPainter {
         adjustmentAngle = _getAngleBetweenVectors(tan.vector, tanBefore.vector);
       }
 
-      tipVector =
-          _rotateVector(-tan.vector, angleStart - adjustmentAngle) * tipLength;
+      tipVector = _rotateVector(-tan.vector, angleStart - adjustmentAngle) * tipLength;
       path.moveTo(tan.position.dx, tan.position.dy);
       path.relativeLineTo(tipVector.dx, tipVector.dy);
 
-      tipVector =
-          _rotateVector(-tan.vector, -angleStart - adjustmentAngle) * tipLength;
+      tipVector = _rotateVector(-tan.vector, -angleStart - adjustmentAngle) * tipLength;
       path.moveTo(tan.position.dx, tan.position.dy);
       path.relativeLineTo(tipVector.dx, tipVector.dy);
     }
@@ -210,14 +199,12 @@ class _ArrowPainter extends CustomPainter {
 
   // Clamp to avoid rounding issues when the 2 vectors are equal.
   static double _getAngleBetweenVectors(Offset vector1, Offset vector2) =>
-      acos((_getVectorsDotProduct(vector1, vector2) /
-              (vector1.distance * vector2.distance))
+      acos((_getVectorsDotProduct(vector1, vector2) / (vector1.distance * vector2.distance))
           .clamp(-1.0, 1.0));
 
   @override
   bool shouldRepaint(_ArrowPainter oldDelegate) =>
-      !mapEquals(oldDelegate._elements, _elements) ||
-      _direction != oldDelegate._direction;
+      !mapEquals(oldDelegate._elements, _elements) || _direction != oldDelegate._direction;
 }
 
 class ArrowElement extends StatefulWidget {
@@ -228,10 +215,10 @@ class ArrowElement extends StatefulWidget {
   final String id;
 
   /// The ID of the [ArrowElement] that will be drawn to
-  final String? targetId;
+  final GlobalKey? targetId;
 
   /// A List of IDs of [ArrowElement] that will be drawn to
-  final List<String>? targetIds;
+  final List<GlobalKey>? targetIds;
 
   /// Where on the source Widget the arrow should start
   final AlignmentGeometry sourceAnchor;
@@ -323,8 +310,7 @@ class _ArrowElementState extends State<ArrowElement> {
 
   @override
   void initState() {
-    _container = context.findAncestorStateOfType<_ArrowContainerState>()!
-      ..addArrow(this);
+    _container = context.findAncestorStateOfType<_ArrowContainerState>()!..addArrow(this);
     super.initState();
   }
 
